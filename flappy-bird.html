@@ -15,6 +15,42 @@
         border: 2px solid #fff;
         background: url(./assets/sprites/background-day.png);
       }
+      .bird-select-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+        margin-right: 10px;
+      }
+      .bird-preview {
+        width: 34px;
+        height: 24px;
+        margin-bottom: 5px;
+      }
+      .bird-select-btn {
+        background-color: #4caf50;
+        border: none;
+        color: white;
+        padding: 8px 16px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 14px;
+        margin: 4px 2px;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background-color 0.3s;
+      }
+      .bird-select-btn:hover {
+        background-color: #45a049;
+      }
+      .bird-select-btn.selected {
+        background-color: #357a38;
+      }
+      .bird-options {
+        display: flex;
+        gap: 10px;
+      }
     </style>
   </head>
   <body>
@@ -50,6 +86,17 @@
 
       let score = 0;
       let bestScore = 0;
+
+      // Load digit images
+      const digits = [];
+      const digitWidth = 24; // Adjust based on your digit image dimensions
+      const digitHeight = 36;
+      for (let i = 0; i <= 9; i++) {
+        const img = new Image();
+        img.src = `./assets/sprites/${i}.png`;
+        digits.push(img);
+      }
+
       // Add birds object here
       const birds = {
         yellow: {
@@ -79,6 +126,8 @@
         width: 34,
         height: 24,
         img: new Image(),
+        hasHit: false,
+        hasDied: false,
 
         draw() {
           ctx.save();
@@ -95,6 +144,8 @@
         flap() {
           if (state.current === state.game) {
             this.velocity = FLAP_FORCE;
+            SOUNDS.flap.currentTime = 0; // Reset sound to start
+            SOUNDS.flap.play(); // Play the flap sound
           }
         },
 
@@ -105,6 +156,11 @@
 
             if (this.y + this.height / 2 >= canvas.height - 50) {
               this.y = canvas.height - 50 - this.height / 2;
+              if (!this.hasDied) {
+                SOUNDS.die.currentTime = 0; // Reset sound to start
+                SOUNDS.die.play(); // Play the die sound
+                this.hasDied = true; // Set the died flag
+              }
               state.current = state.gameOver;
             }
 
@@ -117,54 +173,12 @@
       };
 
       // Add bird selection UI
-      // Remove the first button creation code and keep only this enhanced version
       const birdSelect = document.createElement("div");
       birdSelect.style.position = "absolute";
       birdSelect.style.top = "10px";
       birdSelect.style.left = "10px";
       birdSelect.style.zIndex = "100";
       document.body.appendChild(birdSelect);
-
-      const style = document.createElement("style");
-      style.textContent = `
-  .bird-select-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 5px;
-    margin-right: 10px;
-  }
-  .bird-preview {
-    width: 34px;
-    height: 24px;
-    margin-bottom: 5px;
-  }
-  .bird-select-btn {
-    background-color: #4CAF50;
-    border: none;
-    color: white;
-    padding: 8px 16px;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 14px;
-    margin: 4px 2px;
-    cursor: pointer;
-    border-radius: 4px;
-    transition: background-color 0.3s;
-  }
-  .bird-select-btn:hover {
-    background-color: #45a049;
-  }
-  .bird-select-btn.selected {
-    background-color: #357a38;
-  }
-  .bird-options {
-    display: flex;
-    gap: 10px;
-  }
-`;
-      document.head.appendChild(style);
 
       // Create container for all bird options
       const birdOptionsContainer = document.createElement("div");
@@ -246,7 +260,12 @@
               const birdTop = bird.y - bird.height / 2;
               const birdBottom = bird.y + bird.height / 2;
 
-              if (birdRight > this.x && birdLeft < this.x + this.width && (birdTop < this.topHeight || birdBottom > this.topHeight + gap)) {
+              if (birdRight > this.x && birdLeft < this.x + this.width && (birdTop < this.topHeight || birdBottom > this.topHeight + PIPE_GAP)) {
+                if (!bird.hasHit) {
+                  SOUNDS.hit.currentTime = 0; // Reset sound to start
+                  SOUNDS.hit.play(); // Play the hit sound
+                  bird.hasHit = true; // Set the hit flag
+                }
                 state.current = state.gameOver;
               }
 
@@ -254,7 +273,7 @@
                 score++;
                 this.passed = true;
                 SOUNDS.point.currentTime = 0; // Reset sound to start
-                SOUNDS.point.play(); // Play the score sound
+                SOUNDS.point.play(); // Play the point sound
               }
             }
           },
@@ -282,6 +301,8 @@
         bird.y = canvas.height / 2;
         bird.velocity = 0;
         bird.rotation = 0;
+        bird.hasHit = false; // Reset the hit flag
+        bird.hasDied = false; // Reset the died flag
         pipes = [];
         score = 0;
         state.current = state.getReady;
@@ -302,6 +323,19 @@
         }
       }
 
+      function drawScore(scoreValue, x, y) {
+        const scoreStr = scoreValue.toString();
+        const totalWidth = scoreStr.length * digitWidth;
+        let startX = x - totalWidth / 2;
+
+        for (let i = 0; i < scoreStr.length; i++) {
+          const digit = parseInt(scoreStr[i]);
+          const img = digits[digit];
+          ctx.drawImage(img, startX, y, digitWidth, digitHeight);
+          startX += digitWidth;
+        }
+      }
+
       function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -311,18 +345,21 @@
         pipes.forEach((pipe) => pipe.draw());
         bird.draw();
 
-        ctx.fillStyle = "#FFF";
-        ctx.font = "20px Arial";
         if (state.current === state.game || state.current === state.gameOver) {
-          ctx.fillText(`Score: ${score}`, 10, 30);
+          drawScore(score, canvas.width / 2, 30);
         }
 
         if (state.current === state.getReady) {
+          ctx.fillStyle = "#FFF";
+          ctx.font = "20px Arial";
           ctx.fillText("PRESS SPACE TO START", canvas.width / 2 - 100, canvas.height / 2);
         } else if (state.current === state.gameOver) {
+          ctx.fillStyle = "#FFF";
+          ctx.font = "20px Arial";
           ctx.fillText("GAME OVER", canvas.width / 2 - 50, canvas.height / 2 - 50);
           bestScore = Math.max(score, bestScore);
-          ctx.fillText(`Best Score: ${bestScore}`, canvas.width / 2 - 60, canvas.height / 2 + 50);
+          drawScore(bestScore, canvas.width / 2, canvas.height / 2 + 50);
+
           ctx.fillText("PRESS SPACE TO RESTART", canvas.width / 2 - 100, canvas.height / 2);
         }
       }
@@ -333,7 +370,7 @@
         requestAnimationFrame(gameLoop);
       }
 
-      bird.img.src = "./assets/sprites/yellowbird-upflap.png";
+      bird.img.src = birds[selectedBird].src;
 
       bird.img.onload = function () {
         gameLoop();
