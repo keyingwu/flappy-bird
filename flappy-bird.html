@@ -98,6 +98,13 @@
         digits.push(img);
       }
 
+      // Load message and game over images
+      const messageImage = new Image();
+      messageImage.src = "./assets/sprites/message.png";
+
+      const gameOverImage = new Image();
+      gameOverImage.src = "./assets/sprites/gameover.png";
+
       // Add birds object here
       const birds = {
         yellow: {
@@ -422,17 +429,19 @@
 
         // Game states
         if (state.current === state.getReady) {
-          ctx.fillStyle = "#FFF";
-          ctx.font = "20px Arial";
-          ctx.fillText("PRESS SPACE TO START", canvas.width / 2 - 100, canvas.height / 2);
+          // Display message.png
+          ctx.drawImage(messageImage, canvas.width / 2 - messageImage.width / 2, canvas.height / 2 - messageImage.height / 2);
         } else if (state.current === state.gameOver) {
-          ctx.fillStyle = "#FFF";
-          ctx.font = "20px Arial";
-          ctx.fillText("GAME OVER", canvas.width / 2 - 50, canvas.height / 2 - 50);
+          // Display gameover.png
+          ctx.drawImage(gameOverImage, canvas.width / 2 - gameOverImage.width / 2, canvas.height / 2 - gameOverImage.height / 2 - 50);
+
           bestScore = Math.max(score, bestScore);
           drawScore(bestScore, canvas.width / 2, canvas.height / 2 + 50);
 
-          ctx.fillText("PRESS SPACE TO RESTART", canvas.width / 2 - 100, canvas.height / 2);
+          // Instruction to restart
+          ctx.fillStyle = "#FFF";
+          ctx.font = "20px Arial";
+          ctx.fillText("PRESS SPACE TO RESTART", canvas.width / 2 - 100, canvas.height / 2 + 100);
         }
       }
 
