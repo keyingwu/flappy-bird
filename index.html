@@ -1,7 +1,12 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Flappy Bird Clone</title>
+    <title>Flappy Bird</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" sizes="34x24" href="./assets/sprites/yellowbird-midflap.png" />
+    <!-- Include the pixel font -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+
     <style>
       body {
         display: flex;
@@ -9,23 +14,31 @@
         align-items: center;
         margin: 0;
         background: #333;
+        overflow: hidden; /* Prevent scrolling on mobile */
       }
       #gameCanvas {
+        margin-top: 20px;
         border: 2px solid #fff;
         background: url(./assets/sprites/background-day.png);
+        background-size: cover;
       }
       .controls {
         display: flex;
         justify-content: center;
         align-items: center;
         margin-top: 10px;
+        flex-wrap: wrap; /* Allow controls to wrap on smaller screens */
       }
       .difficulty-options,
       .bird-options {
         display: flex;
         gap: 10px;
+        flex-wrap: wrap; /* Allow buttons to wrap */
       }
-      .difficulty-select-btn {
+      .difficulty-select-btn,
+      .bird-select-btn {
+        flex: 1 1 auto;
+        max-width: 150px;
         background-color: #2196f3;
         border: none;
         color: white;
@@ -37,10 +50,12 @@
         border-radius: 4px;
         transition: background-color 0.3s;
       }
-      .difficulty-select-btn:hover {
+      .difficulty-select-btn:hover,
+      .bird-select-btn:hover {
         background-color: #1976d2;
       }
-      .difficulty-select-btn.selected {
+      .difficulty-select-btn.selected,
+      .bird-select-btn.selected {
         background-color: #0d47a1;
       }
       .bird-select-container {
@@ -54,28 +69,10 @@
         height: 24px;
         margin-bottom: 5px;
       }
-      .bird-select-btn {
-        background-color: #4caf50;
-        border: none;
-        color: white;
-        padding: 8px 16px;
-        text-align: center;
-        text-decoration: none;
-        font-size: 14px;
-        cursor: pointer;
-        border-radius: 4px;
-        transition: background-color 0.3s;
-      }
-      .bird-select-btn:hover {
-        background-color: #45a049;
-      }
-      .bird-select-btn.selected {
-        background-color: #357a38;
-      }
     </style>
   </head>
   <body>
-    <canvas id="gameCanvas" width="390" height="480"></canvas>
+    <canvas id="gameCanvas"></canvas>
 
     <!-- Difficulty Selection -->
     <div class="controls">
@@ -94,6 +91,16 @@
     <script>
       const canvas = document.getElementById("gameCanvas");
       const ctx = canvas.getContext("2d");
+
+      // Adjust canvas size based on window size
+      function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight * 0.7; // Use 70% of viewport height
+      }
+
+      // Call resizeCanvas on window resize
+      window.addEventListener("resize", resizeCanvas);
+      resizeCanvas(); // Initial call
 
       const GRAVITY = 0.15;
       const FLAP_FORCE = -3.5;
@@ -411,21 +418,32 @@
         };
       }
 
+      // Handle keyboard and touch events
+      function handleInput() {
+        switch (state.current) {
+          case state.getReady:
+            state.current = state.game;
+            break;
+          case state.game:
+            bird.flap();
+            break;
+          case state.gameOver:
+            resetGame();
+            break;
+        }
+      }
+
       document.addEventListener("keydown", (e) => {
         if (e.code === "Space") {
           e.preventDefault();
-          switch (state.current) {
-            case state.getReady:
-              state.current = state.game;
-              break;
-            case state.game:
-              bird.flap();
-              break;
-            case state.gameOver:
-              resetGame();
-              break;
-          }
+          handleInput();
         }
+      });
+
+      // Add touch support
+      canvas.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        handleInput();
       });
 
       function resetGame() {
@@ -506,8 +524,10 @@
 
           // Instruction to restart
           ctx.fillStyle = "#FFF";
-          ctx.font = "20px Arial";
-          ctx.fillText("PRESS SPACE TO RESTART", canvas.width / 2 - 100, canvas.height / 2 + 100);
+          ctx.font = "16px 'Press Start 2P'";
+          ctx.textAlign = "center";
+          ctx.fillText("PRESS SPACE OR TAP", canvas.width / 2, canvas.height / 2 + 100);
+          ctx.fillText("TO RESTART", canvas.width / 2, canvas.height / 2 + 125);
         }
       }
 
