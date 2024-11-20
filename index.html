@@ -92,30 +92,11 @@
       const canvas = document.getElementById("gameCanvas");
       const ctx = canvas.getContext("2d");
 
-      // Adjust canvas size based on window size
-      function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight * 0.7; // Use 70% of viewport height
-      }
-
-      // Call resizeCanvas on window resize
-      window.addEventListener("resize", resizeCanvas);
-      resizeCanvas(); // Initial call
-
-      const GRAVITY = 0.15;
-      const FLAP_FORCE = -3.5;
-      const SOUNDS = {
-        hit: new Audio("./assets/audio/hit.wav"),
-        die: new Audio("./assets/audio/die.wav"),
-        flap: new Audio("./assets/audio/flap.wav"),
-        point: new Audio("./assets/audio/point.wav"),
-      };
-      // Add error handling for audio loading
-      Object.values(SOUNDS).forEach((sound) => {
-        sound.addEventListener("error", (e) => {
-          console.warn("Audio failed to load:", e);
-        });
-      });
+      // Game constants
+      const GRAVITY = 0.25;
+      const FLAP_FORCE = -4.6;
+      let score = 0;
+      let bestScore = 0;
 
       const state = {
         current: 0,
@@ -123,9 +104,6 @@
         game: 1,
         gameOver: 2,
       };
-
-      let score = 0;
-      let bestScore = 0;
 
       // Load digit images
       const digits = [];
@@ -144,7 +122,21 @@
       const gameOverImage = new Image();
       gameOverImage.src = "./assets/sprites/gameover.png";
 
-      // Add birds object here
+      // Sounds
+      const SOUNDS = {
+        hit: new Audio("./assets/audio/hit.wav"),
+        die: new Audio("./assets/audio/die.wav"),
+        flap: new Audio("./assets/audio/flap.wav"),
+        point: new Audio("./assets/audio/point.wav"),
+      };
+      // Add error handling for audio loading
+      Object.values(SOUNDS).forEach((sound) => {
+        sound.addEventListener("error", (e) => {
+          console.warn("Audio failed to load:", e);
+        });
+      });
+
+      // Birds
       const birds = {
         yellow: {
           frames: ["./assets/sprites/yellowbird-downflap.png", "./assets/sprites/yellowbird-midflap.png", "./assets/sprites/yellowbird-upflap.png"],
@@ -170,6 +162,96 @@
 
       let selectedBird = "yellow"; // Default bird
 
+      // Base object (Moved above resizeCanvas)
+      const base = {
+        x1: 0,
+        x2: canvas.width,
+        y: 0, // Will be set in resizeCanvas()
+        height: 112,
+        image: new Image(),
+
+        draw() {
+          ctx.drawImage(this.image, this.x1, this.y, canvas.width, this.height);
+          ctx.drawImage(this.image, this.x2, this.y, canvas.width, this.height);
+        },
+
+        update() {
+          if (state.current === state.game || state.current === state.getReady) {
+            this.x1 -= PIPE_SPEED;
+            this.x2 -= PIPE_SPEED;
+
+            if (this.x1 <= -canvas.width) {
+              this.x1 = this.x2 + canvas.width;
+            }
+            if (this.x2 <= -canvas.width) {
+              this.x2 = this.x1 + canvas.width;
+            }
+          }
+        },
+      };
+
+      base.image.src = "./assets/sprites/base.png";
+
+      // Pipes array (Moved above resizeCanvas)
+      let pipes = [];
+
+      // Difficulty settings
+      const difficulties = {
+        easy: {
+          pipeGap: 160,
+          pipeSpacing: 300,
+          pipeSpeed: 2,
+        },
+        medium: {
+          pipeGap: 130,
+          pipeSpacing: 280,
+          pipeSpeed: 2.5,
+        },
+        hard: {
+          pipeGap: 100,
+          pipeSpacing: 260,
+          pipeSpeed: 3,
+        },
+      };
+
+      let currentDifficulty = "medium";
+      let PIPE_GAP = difficulties[currentDifficulty].pipeGap;
+      let PIPE_SPACING = difficulties[currentDifficulty].pipeSpacing;
+      let PIPE_SPEED = difficulties[currentDifficulty].pipeSpeed;
+
+      // Adjust canvas size based on window size
+      function resizeCanvas() {
+        const maxCanvasWidth = 480; // Maximum canvas width
+        const maxCanvasHeight = 640; // Maximum canvas height
+        let canvasWidth = window.innerWidth;
+        let canvasHeight = window.innerHeight * 0.8; // Use 80% of viewport height
+
+        // Maintain aspect ratio of 3:4 (width:height)
+        const aspectRatio = 3 / 4;
+        if (canvasWidth / canvasHeight > aspectRatio) {
+          canvasWidth = canvasHeight * aspectRatio;
+        } else {
+          canvasHeight = canvasWidth / aspectRatio;
+        }
+
+        // Limit canvas size to maximum values
+        canvasWidth = Math.min(canvasWidth, maxCanvasWidth);
+        canvasHeight = Math.min(canvasHeight, maxCanvasHeight);
+
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+
+        // Adjust base position
+        base.y = canvas.height - base.height;
+
+        // Reset game elements that depend on canvas size
+        resetGame();
+      }
+
+      // Call resizeCanvas on window resize
+      window.addEventListener("resize", resizeCanvas);
+
+      // Bird object
       const bird = {
         x: 50,
         y: canvas.height / 2,
@@ -215,6 +297,11 @@
             }
           }
 
+          if (state.current === state.getReady) {
+            // Bird slowly oscillates in the getReady state
+            this.y = canvas.height / 2 + 10 * Math.sin(Date.now() / 200);
+          }
+
           if (state.current === state.game) {
             this.velocity += GRAVITY;
             this.y += this.velocity;
@@ -237,59 +324,8 @@
         },
       };
 
-      // Base object
-      const base = {
-        x1: 0,
-        x2: canvas.width,
-        y: canvas.height - 50,
-        height: 50,
-        image: new Image(),
-
-        draw() {
-          ctx.drawImage(this.image, this.x1, this.y, canvas.width, this.height);
-          ctx.drawImage(this.image, this.x2, this.y, canvas.width, this.height);
-        },
-
-        update() {
-          if (state.current === state.game || state.current === state.getReady) {
-            this.x1 -= PIPE_SPEED;
-            this.x2 -= PIPE_SPEED;
-
-            if (this.x1 <= -canvas.width) {
-              this.x1 = this.x2 + canvas.width;
-            }
-            if (this.x2 <= -canvas.width) {
-              this.x2 = this.x1 + canvas.width;
-            }
-          }
-        },
-      };
-
-      base.image.src = "./assets/sprites/base.png";
-
-      // Difficulty settings
-      const difficulties = {
-        easy: {
-          pipeGap: 160,
-          pipeSpacing: 300,
-          pipeSpeed: 1.2,
-        },
-        medium: {
-          pipeGap: 130,
-          pipeSpacing: 280,
-          pipeSpeed: 1.5,
-        },
-        hard: {
-          pipeGap: 100,
-          pipeSpacing: 260,
-          pipeSpeed: 1.8,
-        },
-      };
-
-      let currentDifficulty = "medium";
-      let PIPE_GAP = difficulties[currentDifficulty].pipeGap;
-      let PIPE_SPACING = difficulties[currentDifficulty].pipeSpacing;
-      let PIPE_SPEED = difficulties[currentDifficulty].pipeSpeed;
+      // Initialize canvas and game elements
+      resizeCanvas(); // Initial call to set up canvas size
 
       // Add bird selection UI
       const birdOptionsContainer = document.querySelector(".bird-options");
@@ -357,15 +393,11 @@
         });
       });
 
-      let pipes = [];
-
       const sprites = {
-        pipeTop: new Image(),
-        pipeBottom: new Image(),
+        pipe: new Image(),
       };
 
-      sprites.pipeTop.src = "./assets/sprites/pipe-green.png";
-      sprites.pipeBottom.src = "./assets/sprites/pipe-green.png";
+      sprites.pipe.src = "./assets/sprites/pipe-green.png";
 
       function createPipe() {
         const gap = PIPE_GAP;
@@ -380,13 +412,15 @@
           width: 52,
 
           draw() {
+            // Top pipe
             ctx.save();
             ctx.translate(this.x, this.topHeight);
-            ctx.scale(1, -1);
-            ctx.drawImage(sprites.pipeTop, 0, 0);
+            ctx.scale(1, -1); // Flip the image vertically
+            ctx.drawImage(sprites.pipe, 0, 0);
             ctx.restore();
 
-            ctx.drawImage(sprites.pipeBottom, this.x, this.topHeight + gap);
+            // Bottom pipe
+            ctx.drawImage(sprites.pipe, this.x, this.topHeight + gap);
           },
 
           update() {
@@ -447,6 +481,7 @@
       });
 
       function resetGame() {
+        bird.x = 50;
         bird.y = canvas.height / 2;
         bird.velocity = 0;
         bird.rotation = 0;
@@ -454,10 +489,11 @@
         bird.hasDied = false; // Reset the died flag
         bird.frameIndex = 0;
         bird.frameTimer = 0;
-        pipes = [];
+        pipes = []; // Reset the pipes array
         score = 0;
         base.x1 = 0;
         base.x2 = canvas.width;
+        base.y = canvas.height - base.height;
         state.current = state.getReady;
       }
 
