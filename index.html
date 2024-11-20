@@ -77,9 +77,10 @@
     <!-- Difficulty Selection -->
     <div class="controls">
       <div class="difficulty-options">
-        <button class="difficulty-select-btn" data-difficulty="easy">简单模式</button>
-        <button class="difficulty-select-btn selected" data-difficulty="medium">凡人模式</button>
-        <button class="difficulty-select-btn" data-difficulty="hard">地狱模式</button>
+        <button class="difficulty-select-btn selected" data-difficulty="easy">简单</button>
+        <button class="difficulty-select-btn" data-difficulty="medium">凡人</button>
+        <button class="difficulty-select-btn" data-difficulty="hard">困难</button>
+        <button class="difficulty-select-btn" data-difficulty="hell">地狱</button>
       </div>
     </div>
 
@@ -211,6 +212,11 @@
           pipeGap: 100,
           pipeSpacing: 260,
           pipeSpeed: 3,
+        },
+        hell: {
+          pipeGap: 80,
+          pipeSpacing: 240,
+          pipeSpeed: 3.5,
         },
       };
 
@@ -562,8 +568,8 @@
           ctx.fillStyle = "#FFF";
           ctx.font = "16px 'Press Start 2P'";
           ctx.textAlign = "center";
-          ctx.fillText("PRESS SPACE OR TAP", canvas.width / 2, canvas.height / 2 + 100);
-          ctx.fillText("TO RESTART", canvas.width / 2, canvas.height / 2 + 125);
+          ctx.fillText("PRESS SPACE OR TAP", canvas.width / 2, canvas.height / 2 + 130);
+          ctx.fillText("TO RESTART", canvas.width / 2, canvas.height / 2 + 155);
         }
       }
 
