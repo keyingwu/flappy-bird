@@ -100,17 +100,22 @@
       // Add birds object here
       const birds = {
         yellow: {
-          src: "./assets/sprites/yellowbird-upflap.png",
+          frames: ["./assets/sprites/yellowbird-downflap.png", "./assets/sprites/yellowbird-midflap.png", "./assets/sprites/yellowbird-upflap.png"],
           width: 34,
           height: 24,
         },
         red: {
-          src: "./assets/sprites/redbird-upflap.png",
+          frames: ["./assets/sprites/redbird-downflap.png", "./assets/sprites/redbird-midflap.png", "./assets/sprites/redbird-upflap.png"],
           width: 34,
           height: 24,
         },
         blue: {
-          src: "./assets/sprites/bluebird-upflap.png",
+          frames: ["./assets/sprites/bluebird-downflap.png", "./assets/sprites/bluebird-midflap.png", "./assets/sprites/bluebird-upflap.png"],
+          width: 34,
+          height: 24,
+        },
+        superman: {
+          frames: ["./assets/sprites/superman.png"],
           width: 34,
           height: 24,
         },
@@ -125,7 +130,10 @@
         rotation: 0,
         width: 34,
         height: 24,
-        img: new Image(),
+        frames: [],
+        frameIndex: 0,
+        frameTimer: 0,
+        frameInterval: 5, // Adjust to control animation speed
         hasHit: false,
         hasDied: false,
 
@@ -137,7 +145,8 @@
           this.rotation = Math.max(Math.min(this.rotation, 30), -30);
           ctx.rotate((this.rotation * Math.PI) / 180);
 
-          ctx.drawImage(this.img, -this.width / 2, -this.height / 2, this.width, this.height);
+          const frameImage = this.frames[this.frameIndex];
+          ctx.drawImage(frameImage, -this.width / 2, -this.height / 2, this.width, this.height);
           ctx.restore();
         },
 
@@ -150,6 +159,15 @@
         },
 
         update() {
+          // Update frame for animation
+          if (state.current === state.game || state.current === state.getReady) {
+            this.frameTimer++;
+            if (this.frameTimer >= this.frameInterval) {
+              this.frameTimer = 0;
+              this.frameIndex = (this.frameIndex + 1) % this.frames.length;
+            }
+          }
+
           if (state.current === state.game) {
             this.velocity += GRAVITY;
             this.y += this.velocity;
@@ -192,7 +210,7 @@
 
         // Create preview image
         const preview = document.createElement("img");
-        preview.src = birds[birdType].src;
+        preview.src = birds[birdType].frames[0]; // Use first frame for preview
         preview.className = "bird-preview";
         container.appendChild(preview);
 
@@ -204,9 +222,18 @@
 
         button.addEventListener("click", () => {
           selectedBird = birdType;
-          bird.img.src = birds[birdType].src;
-          bird.width = birds[birdType].width;
-          bird.height = birds[birdType].height;
+          const birdData = birds[birdType];
+          bird.width = birdData.width;
+          bird.height = birdData.height;
+          bird.frames = [];
+          bird.frameIndex = 0;
+          bird.frameTimer = 0;
+
+          birdData.frames.forEach((src) => {
+            const img = new Image();
+            img.src = src;
+            bird.frames.push(img);
+          });
 
           // Update selected button styling
           document.querySelectorAll(".bird-select-btn").forEach((btn) => {
@@ -303,6 +330,8 @@
         bird.rotation = 0;
         bird.hasHit = false; // Reset the hit flag
         bird.hasDied = false; // Reset the died flag
+        bird.frameIndex = 0;
+        bird.frameTimer = 0;
         pipes = [];
         score = 0;
         state.current = state.getReady;
@@ -370,26 +399,53 @@
         requestAnimationFrame(gameLoop);
       }
 
-      bird.img.src = birds[selectedBird].src;
+      // Load frames for the default selected bird and start the game
+      function loadBirdFrames(birdType) {
+        const birdData = birds[birdType];
+        bird.width = birdData.width;
+        bird.height = birdData.height;
+        bird.frames = [];
+        bird.frameIndex = 0;
+        bird.frameTimer = 0;
 
-      bird.img.onload = function () {
-        gameLoop();
-      };
+        let framesToLoad = birdData.frames.length;
+        let framesLoaded = 0;
 
-      bird.img.onerror = function () {
-        console.error("Bird image failed to load, falling back to red circle");
-        bird.draw = function () {
-          ctx.save();
-          ctx.translate(this.x, this.y);
-          ctx.rotate((this.rotation * Math.PI) / 180);
-          ctx.beginPath();
-          ctx.fillStyle = "#FF0000";
-          ctx.arc(0, 0, 24, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        };
-        gameLoop();
-      };
+        birdData.frames.forEach((src) => {
+          const img = new Image();
+          img.src = src;
+          img.onload = function () {
+            framesLoaded++;
+            if (framesLoaded === framesToLoad) {
+              if (!gameStarted) {
+                gameLoop();
+                gameStarted = true;
+              }
+            }
+          };
+          img.onerror = function () {
+            console.error("Bird image failed to load, falling back to red circle");
+            bird.draw = function () {
+              ctx.save();
+              ctx.translate(this.x, this.y);
+              ctx.rotate((this.rotation * Math.PI) / 180);
+              ctx.beginPath();
+              ctx.fillStyle = "#FF0000";
+              ctx.arc(0, 0, 24, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.restore();
+            };
+            if (!gameStarted) {
+              gameLoop();
+              gameStarted = true;
+            }
+          };
+          bird.frames.push(img);
+        });
+      }
+
+      let gameStarted = false;
+      loadBirdFrames(selectedBird);
     </script>
   </body>
 </html>
