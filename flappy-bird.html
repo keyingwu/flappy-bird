@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Flappy Bird Clone</title>
+    <style>
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        background: #333;
+      }
+      canvas {
+        border: 2px solid #fff;
+        background: #70c5ce;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="gameCanvas" width="320" height="480"></canvas>
+    <script>
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+
+      const GRAVITY = 0.15;
+      const FLAP_FORCE = -3.5;
+      const PIPE_SPEED = 1.5;
+      const PIPE_SPACING = 220;
+      const PIPE_GAP = 100;
+
+      const state = {
+        current: 0,
+        getReady: 0,
+        game: 1,
+        gameOver: 2,
+      };
+
+      let score = 0;
+      let bestScore = 0;
+
+      const bird = {
+        x: 50,
+        y: canvas.height / 2,
+        velocity: 0,
+        rotation: 0,
+        width: 48,
+        height: 48,
+        img: new Image(),
+
+        draw() {
+          ctx.save();
+          ctx.translate(this.x, this.y);
+
+          this.rotation = this.velocity * 3;
+          this.rotation = Math.max(Math.min(this.rotation, 30), -30);
+          ctx.rotate((this.rotation * Math.PI) / 180);
+
+          ctx.drawImage(this.img, -this.width / 2, -this.height / 2, this.width, this.height);
+          ctx.restore();
+        },
+
+        flap() {
+          if (state.current === state.game) {
+            this.velocity = FLAP_FORCE;
+          }
+        },
+
+        update() {
+          if (state.current === state.game) {
+            this.velocity += GRAVITY;
+            this.y += this.velocity;
+
+            if (this.y + this.height / 2 >= canvas.height - 50) {
+              this.y = canvas.height - 50 - this.height / 2;
+              state.current = state.gameOver;
+            }
+
+            if (this.y - this.height / 2 <= 0) {
+              this.y = this.height / 2;
+              this.velocity = 0;
+            }
+          }
+        },
+      };
+
+      let pipes = [];
+
+      function createPipe() {
+        const gap = PIPE_GAP;
+        const minHeight = 50;
+        const maxHeight = canvas.height - gap - minHeight - 50;
+        const height = Math.floor(Math.random() * (maxHeight - minHeight + 1) + minHeight);
+
+        return {
+          x: canvas.width,
+          topHeight: height,
+          passed: false,
+
+          draw() {
+            ctx.fillStyle = "#00FF00";
+            ctx.fillRect(this.x, 0, 30, this.topHeight);
+            ctx.fillRect(this.x, this.topHeight + gap, 30, canvas.height - (this.topHeight + gap) - 50);
+          },
+
+          update() {
+            if (state.current === state.game) {
+              this.x -= PIPE_SPEED;
+
+              const birdLeft = bird.x - bird.width / 2;
+              const birdRight = bird.x + bird.width / 2;
+              const birdTop = bird.y - bird.height / 2;
+              const birdBottom = bird.y + bird.height / 2;
+
+              if (birdRight > this.x && birdLeft < this.x + 30 && (birdTop < this.topHeight || birdBottom > this.topHeight + gap)) {
+                state.current = state.gameOver;
+              }
+
+              if (!this.passed && bird.x > this.x + 30) {
+                score++;
+                this.passed = true;
+              }
+            }
+          },
+        };
+      }
+
+      document.addEventListener("keydown", (e) => {
+        if (e.code === "Space") {
+          e.preventDefault();
+          switch (state.current) {
+            case state.getReady:
+              state.current = state.game;
+              break;
+            case state.game:
+              bird.flap();
+              break;
+            case state.gameOver:
+              resetGame();
+              break;
+          }
+        }
+      });
+
+      function resetGame() {
+        bird.y = canvas.height / 2;
+        bird.velocity = 0;
+        bird.rotation = 0;
+        pipes = [];
+        score = 0;
+        state.current = state.getReady;
+      }
+
+      function update() {
+        bird.update();
+
+        if (state.current === state.game) {
+          if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width - PIPE_SPACING) {
+            pipes.push(createPipe());
+          }
+
+          pipes = pipes.filter((pipe) => {
+            pipe.update();
+            return pipe.x > -30;
+          });
+        }
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#DED895";
+        ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+
+        pipes.forEach((pipe) => pipe.draw());
+        bird.draw();
+
+        ctx.fillStyle = "#FFF";
+        ctx.font = "20px Arial";
+        if (state.current === state.game || state.current === state.gameOver) {
+          ctx.fillText(`Score: ${score}`, 10, 30);
+        }
+
+        if (state.current === state.getReady) {
+          ctx.fillText("PRESS SPACE TO START", canvas.width / 2 - 100, canvas.height / 2);
+        } else if (state.current === state.gameOver) {
+          ctx.fillText("GAME OVER", canvas.width / 2 - 50, canvas.height / 2 - 50);
+          bestScore = Math.max(score, bestScore);
+          ctx.fillText(`Best Score: ${bestScore}`, canvas.width / 2 - 60, canvas.height / 2 + 50);
+          ctx.fillText("PRESS SPACE TO RESTART", canvas.width / 2 - 100, canvas.height / 2);
+        }
+      }
+
+      function gameLoop() {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+      }
+
+      bird.img.src =
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAYBAMAAABtiDI6AAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JQAAgIMAAPn/AACA6QAAdTAAAOpgAAA6mAAAF2+SX8VGAAAAG1BMVEUAAABTOEb614z6+vr4tzPX5sz8OADggCz///+gdOUrAAAAAXRSTlMAQObYZgAAAAFiS0dECIbelXoAAAAJcEhZcwAACxMAAAsTAQCanBgAAAAHdElNRQfjAwwAAhPn+iW4AAAAa0lEQVQY043RWRHAIAwE0FhYC7GAhVioBSzEfnPQQjlmul/wBjIkEEUQoSGzAMyMUnAW24sYdJrFS4rJZZC0SJ7+IQ+dhG3BUbt1sgpFBw41gp34E1UVtU9kIxrBe2kjhLRhsKu0wY8/8ZEbVjg2uawL1iMAAAAldEVYdGRhdGU6Y3JlYXRlADIwMTktMDMtMTFUMTg6MDI6MTkrMDY6MDDhKjnDAAAAJXRFWHRkYXRlOm1vZGlmeQAyMDE5LTAzLTExVDE4OjAyOjE5KzA2OjAwkHeBfwAAAABJRU5ErkJggg==";
+
+      bird.img.onload = function () {
+        gameLoop();
+      };
+
+      bird.img.onerror = function () {
+        console.error("Bird image failed to load, falling back to red circle");
+        bird.draw = function () {
+          ctx.save();
+          ctx.translate(this.x, this.y);
+          ctx.rotate((this.rotation * Math.PI) / 180);
+          ctx.beginPath();
+          ctx.fillStyle = "#FF0000";
+          ctx.arc(0, 0, 24, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        };
+        gameLoop();
+      };
+    </script>
+  </body>
+</html>
