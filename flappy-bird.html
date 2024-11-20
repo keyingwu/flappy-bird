@@ -5,22 +5,49 @@
     <style>
       body {
         display: flex;
-        justify-content: center;
+        flex-direction: column;
         align-items: center;
-        height: 100vh;
         margin: 0;
         background: #333;
       }
-      canvas {
+      #gameCanvas {
         border: 2px solid #fff;
         background: url(./assets/sprites/background-day.png);
+      }
+      .controls {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 10px;
+      }
+      .difficulty-options,
+      .bird-options {
+        display: flex;
+        gap: 10px;
+      }
+      .difficulty-select-btn {
+        background-color: #2196f3;
+        border: none;
+        color: white;
+        padding: 8px 16px;
+        text-align: center;
+        text-decoration: none;
+        font-size: 14px;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background-color 0.3s;
+      }
+      .difficulty-select-btn:hover {
+        background-color: #1976d2;
+      }
+      .difficulty-select-btn.selected {
+        background-color: #0d47a1;
       }
       .bird-select-container {
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 5px;
-        margin-right: 10px;
       }
       .bird-preview {
         width: 34px;
@@ -34,9 +61,7 @@
         padding: 8px 16px;
         text-align: center;
         text-decoration: none;
-        display: inline-block;
         font-size: 14px;
-        margin: 4px 2px;
         cursor: pointer;
         border-radius: 4px;
         transition: background-color 0.3s;
@@ -47,24 +72,31 @@
       .bird-select-btn.selected {
         background-color: #357a38;
       }
-      .bird-options {
-        display: flex;
-        gap: 10px;
-      }
     </style>
   </head>
   <body>
     <canvas id="gameCanvas" width="390" height="480"></canvas>
+
+    <!-- Difficulty Selection -->
+    <div class="controls">
+      <div class="difficulty-options">
+        <button class="difficulty-select-btn" data-difficulty="easy">简单模式</button>
+        <button class="difficulty-select-btn selected" data-difficulty="medium">凡人模式</button>
+        <button class="difficulty-select-btn" data-difficulty="hard">地狱模式</button>
+      </div>
+    </div>
+
+    <!-- Bird Selection -->
+    <div class="controls">
+      <div class="bird-options"></div>
+    </div>
+
     <script>
       const canvas = document.getElementById("gameCanvas");
       const ctx = canvas.getContext("2d");
 
       const GRAVITY = 0.15;
       const FLAP_FORCE = -3.5;
-      const PIPE_SPEED = 1.5;
-      const PIPE_SPACING = 280;
-      const PIPE_GAP = 130;
-      const BASE_SPEED = PIPE_SPEED; // Base moves at the same speed as pipes
       const SOUNDS = {
         hit: new Audio("./assets/audio/hit.wav"),
         die: new Audio("./assets/audio/die.wav"),
@@ -213,8 +245,8 @@
 
         update() {
           if (state.current === state.game || state.current === state.getReady) {
-            this.x1 -= BASE_SPEED;
-            this.x2 -= BASE_SPEED;
+            this.x1 -= PIPE_SPEED;
+            this.x2 -= PIPE_SPEED;
 
             if (this.x1 <= -canvas.width) {
               this.x1 = this.x2 + canvas.width;
@@ -228,18 +260,32 @@
 
       base.image.src = "./assets/sprites/base.png";
 
-      // Add bird selection UI
-      const birdSelect = document.createElement("div");
-      birdSelect.style.position = "absolute";
-      birdSelect.style.top = "10px";
-      birdSelect.style.left = "10px";
-      birdSelect.style.zIndex = "100";
-      document.body.appendChild(birdSelect);
+      // Difficulty settings
+      const difficulties = {
+        easy: {
+          pipeGap: 160,
+          pipeSpacing: 300,
+          pipeSpeed: 1.2,
+        },
+        medium: {
+          pipeGap: 130,
+          pipeSpacing: 280,
+          pipeSpeed: 1.5,
+        },
+        hard: {
+          pipeGap: 100,
+          pipeSpacing: 260,
+          pipeSpeed: 1.8,
+        },
+      };
 
-      // Create container for all bird options
-      const birdOptionsContainer = document.createElement("div");
-      birdOptionsContainer.className = "bird-options";
-      birdSelect.appendChild(birdOptionsContainer);
+      let currentDifficulty = "medium";
+      let PIPE_GAP = difficulties[currentDifficulty].pipeGap;
+      let PIPE_SPACING = difficulties[currentDifficulty].pipeSpacing;
+      let PIPE_SPEED = difficulties[currentDifficulty].pipeSpeed;
+
+      // Add bird selection UI
+      const birdOptionsContainer = document.querySelector(".bird-options");
 
       Object.keys(birds).forEach((birdType) => {
         // Create container for each bird option
@@ -282,6 +328,26 @@
 
         container.appendChild(button);
         birdOptionsContainer.appendChild(container);
+      });
+
+      // Add difficulty selection UI
+      const difficultyButtons = document.querySelectorAll(".difficulty-select-btn");
+      difficultyButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          currentDifficulty = button.getAttribute("data-difficulty");
+          PIPE_GAP = difficulties[currentDifficulty].pipeGap;
+          PIPE_SPACING = difficulties[currentDifficulty].pipeSpacing;
+          PIPE_SPEED = difficulties[currentDifficulty].pipeSpeed;
+
+          // Update selected button styling
+          difficultyButtons.forEach((btn) => {
+            btn.classList.remove("selected");
+          });
+          button.classList.add("selected");
+
+          // Reset game to apply new difficulty
+          resetGame();
+        });
       });
 
       let pipes = [];
